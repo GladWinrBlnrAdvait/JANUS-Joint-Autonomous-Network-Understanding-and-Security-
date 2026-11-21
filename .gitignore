@@ -10,3 +10,5 @@ data/raw/*
 data/normalized/*
 !data/raw/.gitkeep
 !data/normalized/.gitkeep
+data/cases/
+data/cases/
