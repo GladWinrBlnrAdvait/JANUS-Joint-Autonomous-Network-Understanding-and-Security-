@@ -25,6 +25,7 @@ The current prototype implements the **Security Analysis & Evidence Layer**:
 | `analyzers/network/nmap_analyzer.py` | Runs Nmap (XML output), parses hosts, ports and services into Evidence. Legacy text parser retained. |
 | `analyzers/software/semgrep_adapter.py` | Converts Semgrep (SAST) JSON into Evidence. |
 | `target_agent/linux_collector.py` | Whitelisted read-only host collection: interfaces, routes, listening sockets. No arbitrary command execution. |
+| `controlled_execution/` | Part 3 prototype: scoped transactional file remediation, snapshots, rollback, and independent file/command/TCP validation. |
 | `demo.py` | End-to-end demonstration. |
 
 Design principles: traceability to raw output, explicit representation of failures, preserved contradictions, restricted collection, and authorization-first scanning.
@@ -34,9 +35,8 @@ Design principles: traceability to raw output, explicit representation of failur
 - Additional network configuration evidence collection (firewall, service status).
 - Further software security integrations: DAST, dependency analysis, and fuzzing.
 - Evidence correlation and contextual reasoning.
-- Remediation planning and controlled execution.
-- Independent security, functional, and network validation.
-- Rollback and rejection of unsuccessful changes.
+- Context correlation, reasoning, and remediation planning remain planned.
+- `controlled_execution/` now provides an initial controlled execution and independent validation prototype (see its README).
 
 These capabilities are planned work and are not yet represented as fully implemented features.
 
@@ -95,6 +95,6 @@ JANUS is being developed for authorized security testing in controlled environme
 
 ## Project Status
 
-**Research prototype — under active development.**
+**Research prototype — under active development.** Part 3 is an initial workspace-based prototype; it is not yet a VM/container isolation layer.
 
 JANUS does not currently guarantee vulnerability discovery, successful remediation, or production-safe autonomous changes.
