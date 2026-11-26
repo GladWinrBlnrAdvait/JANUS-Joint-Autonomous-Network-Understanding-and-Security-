@@ -1,0 +1,7 @@
+{
+  "demo-app": {
+    "host": "192.168.56.10",
+    "port": 80,
+    "role": "web application (demo)"
+  }
+}

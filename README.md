@@ -35,7 +35,7 @@ Design principles: traceability to raw output, explicit representation of failur
 - Additional network configuration evidence collection (firewall, service status).
 - Further software security integrations: DAST, dependency analysis, and fuzzing.
 - Evidence correlation and contextual reasoning.
-- Context correlation, reasoning, and remediation planning remain planned.
+- Context correlation, reasoning and remediation planning: implemented in `reasoning/` (see below). Still pending: a run against a real LLM, and DAST/dependency/fuzzing evidence.
 - `controlled_execution/` now provides an initial controlled execution and independent validation prototype (see its README).
 
 These capabilities are planned work and are not yet represented as fully implemented features.
@@ -80,6 +80,49 @@ python demo.py --live <TARGET_IP> --scope <ALLOWED_NETWORK>
 ```
 
 Output: `data/cases/<case_id>/bundle.json` plus raw artifacts under `data/cases/<case_id>/raw/`.
+
+## Cyber Reasoning & Remediation Layer
+
+Consumes `bundle.json` from the Evidence layer and produces explainable remediation packages.
+
+```
+bundle.json -> correlate -> context -> reason (LLM) -> remediate (LLM) -> remediation_packages.json
+                                                                  ^                  |
+                                                                  +-- refine <-- validation result
+```
+
+| Module | Purpose |
+| --- | --- |
+| `reasoning/models.py` | Contracts: `Finding`, `RemediationPackage`, `ValidationResult` (`NOT_RUN` never counts as a pass). |
+| `reasoning/correlator.py` | Merges evidence into deduplicated findings; heuristic confidence across independent tools. |
+| `reasoning/context.py` | Adds network/host context from the bundle; unknowns are listed as `data_gaps`, never assumed. |
+| `reasoning/assets.py`, `config/assets.json` | Explicit software-target -> host/port map (the evidence layer does not link them). |
+| `reasoning/reasoner.py`, `remediation.py` | LLM steps. Output is schema-validated, evidence citations are checked, bad output is retried then rejected. |
+| `reasoning/patching.py` | Strict pure-Python unified-diff applier: a patch is accepted only if it applies exactly to the real file. |
+| `reasoning/decisionlog.py` | Append-only audit log (`decisions.jsonl`) of every LLM exchange with prompt hashes. |
+| `reasoning/handoff.py` | Converts a reasoning package into `controlled_execution`'s format (full file content + `expected_sha256`, host target, concrete checks) and converts its result back. Refuses to run with weaker validation than required. |
+| `reasoning/closed_loop.py`, `validation_plan.py` | Execute -> validate -> refine loop (max 3 attempts, then escalate to a human). Validation commands come from an operator-written JSON plan, never from the LLM; the same list is the executor's allow-list. |
+| `reasoning/llm.py`, `stub.py` | `LLMClient` interface, Anthropic HTTPS client, scripted test LLM, offline rule-based stub. |
+
+Run (offline, no API key; the stub is rule-based, not real AI):
+
+```
+python demo.py
+python demo_reasoning.py             # reason + propose a fix
+python demo_reasoning.py --execute   # also apply it with controlled_execution, validate, roll back on failure
+```
+
+With `--execute` the demo copies `samples/demo-app` into `data/cases/<case>/workspace`, applies the fix there, and runs
+`check_exploit.py` (the SQL injection must no longer work), `check_regression.py` (login must still work) and
+`check_static_scan.py` (a stand-in for re-running Semgrep). The validation commands live in `samples/demo-app/validation.json`.
+
+Output under `data/cases/<case_id>/reasoning/`: `remediation_packages.json`, `analysis.json`, `decisions.jsonl`.
+Real model: set `ANTHROPIC_API_KEY` (optionally `JANUS_LLM_MODEL`) and run `python demo_reasoning.py --llm anthropic`.
+
+Reasoning-layer limitations: the Anthropic client has not been run against the live API; only `code_patch` changes can be executed
+automatically (config, dependency and firewall changes are proposed but handed to a human); the reasoner reads source from the same
+workspace the executor writes to; code patches are single-file;
+SAST and DAST findings are not yet linked (needs a route-to-code map); firewall/ACL changes are proposals that always require approval.
 
 ## Known Limitations
 
