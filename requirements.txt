@@ -1,0 +1,4 @@
+# JANUS dependencies
+# The JANUS code itself uses only the Python standard library.
+# pytest is needed to run the tests:  python -m pytest -q
+pytest>=7

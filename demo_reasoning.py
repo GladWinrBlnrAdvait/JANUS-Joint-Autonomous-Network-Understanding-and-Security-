@@ -54,6 +54,7 @@ def main():
 
     summary = run_case(args.bundle, llm, args.assets, source, executor, plan)
     print(json.dumps(summary, indent=2))
+    print("\nOpen this file in your browser to see the report:\n  " + str(Path(summary["report"]).resolve()))
 
 
 if __name__ == "__main__":

@@ -102,6 +102,7 @@ bundle.json -> correlate -> context -> reason (LLM) -> remediate (LLM) -> remedi
 | `reasoning/decisionlog.py` | Append-only audit log (`decisions.jsonl`) of every LLM exchange with prompt hashes. |
 | `reasoning/handoff.py` | Converts a reasoning package into `controlled_execution`'s format (full file content + `expected_sha256`, host target, concrete checks) and converts its result back. Refuses to run with weaker validation than required. |
 | `reasoning/closed_loop.py`, `validation_plan.py` | Execute -> validate -> refine loop (max 3 attempts, then escalate to a human). Validation commands come from an operator-written JSON plan, never from the LLM; the same list is the executor's allow-list. |
+| `reasoning/report.py` | Builds `report.html`: one self-contained page (before vs after, reasoning with cited evidence, colored diff, per-check results, earlier attempts). All tool/model text is HTML-escaped. |
 | `reasoning/llm.py`, `stub.py` | `LLMClient` interface, Anthropic HTTPS client, scripted test LLM, offline rule-based stub. |
 
 Run (offline, no API key; the stub is rule-based, not real AI):
@@ -116,7 +117,8 @@ With `--execute` the demo copies `samples/demo-app` into `data/cases/<case>/work
 `check_exploit.py` (the SQL injection must no longer work), `check_regression.py` (login must still work) and
 `check_static_scan.py` (a stand-in for re-running Semgrep). The validation commands live in `samples/demo-app/validation.json`.
 
-Output under `data/cases/<case_id>/reasoning/`: `remediation_packages.json`, `analysis.json`, `decisions.jsonl`.
+Output under `data/cases/<case_id>/reasoning/`: `report.html` (open in a browser), `remediation_packages.json`, `analysis.json`, `decisions.jsonl`.
+Install test dependencies with `pip install -r requirements.txt`.
 Real model: set `ANTHROPIC_API_KEY` (optionally `JANUS_LLM_MODEL`) and run `python demo_reasoning.py --llm anthropic`.
 
 Reasoning-layer limitations: the Anthropic client has not been run against the live API; only `code_patch` changes can be executed

@@ -41,14 +41,17 @@ class OfflineStubLLM(LLMClient):
                     "recommended_change_types": [], "confidence": 0.3}
         rationale = [{"claim": "The scanner reports string-built SQL at "
                                f"{f['location']} (CWE-89).", "evidence_ids": ids}]
-        if ctx.get("exposure") == "reachable_from_scanner" and ctx.get("evidence_ids"):
+        port_ev = [sv["evidence_id"] for sv in ctx.get("open_services", [])
+                   if sv.get("port") == ctx.get("app_port") and sv.get("evidence_id")]
+        if ctx.get("exposure") == "reachable_from_scanner" and port_ev:
             rationale.append({"claim": f"The application port {ctx['app_port']} was seen open "
                               "from the scanner, so the code path is network-reachable.",
-                              "evidence_ids": ctx["evidence_ids"][:1]})
-        if gaps:
+                              "evidence_ids": port_ev[:1]})
+        gap_ids = [i for g in gaps for i in re.findall(r"\[([A-Z]+-[0-9a-f]+)\]", g)]
+        if gap_ids:
             rationale.append({"claim": "Host firewall/socket state could not be collected, so "
                               "exposure beyond the scanner's view is unknown.",
-                              "evidence_ids": ctx["evidence_ids"][-1:] or ids[:1]})
+                              "evidence_ids": gap_ids[:1]})
         return {"verdict": "likely_vulnerable",
                 "root_cause": "User input is concatenated into an SQL string instead of being "
                               "passed as bound parameters.",

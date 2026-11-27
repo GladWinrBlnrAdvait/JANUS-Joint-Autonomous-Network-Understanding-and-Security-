@@ -5,6 +5,7 @@ Output (next to the bundle, under <case>/reasoning/):
   remediation_packages.json   final package per finding (after validation if an executor is given)
   analysis.json               findings, context, assessments, packages, errors
   decisions.jsonl             append-only audit log of every LLM exchange
+  report.html                 human-readable report (open in a browser)
 """
 
 import json
@@ -18,6 +19,7 @@ from reasoning.correlator import correlate
 from reasoning.decisionlog import DecisionLog
 from reasoning.llm import LLMClient, ReasoningError
 from reasoning.reasoner import CyberReasoner
+from reasoning.report import write_report
 from reasoning.remediation import RemediationEngine
 from reasoning.source import FileSourceProvider
 from reasoning.validation_plan import ValidationPlan
@@ -67,10 +69,11 @@ def run_case(bundle_path: str, llm: LLMClient, assets_path: str = "config/assets
     (out_dir / "analysis.json").write_text(
         json.dumps({"case_id": bundle["case_id"], "records": records}, indent=2),
         encoding="utf-8")
+    report = write_report(str(out_dir), bundle_path)
     outcomes: Dict[str, int] = {}
     for r in records:
         if r.get("outcome"):
             outcomes[r["outcome"]] = outcomes.get(r["outcome"], 0) + 1
     return {"case_id": bundle["case_id"], "findings": len(records), "packages": len(packages),
             "errors": sum(1 for r in records if r["error"]), "outcomes": outcomes,
-            "out_dir": str(out_dir)}
+            "out_dir": str(out_dir), "report": report}
