@@ -145,7 +145,7 @@ def test_unexecutable_changes_are_blocked_with_a_reason(lab):
     dep = RemediationPackage("FIND-1", "C", 1, "proposed", "rc", "high",
                              changes=[ChangeItem("dependency_upgrade", package="x", to_version="2")],
                              validation_requirements=["regression"])
-    with pytest.raises(HandoffError, match="cannot be executed automatically"):
+    with pytest.raises(HandoffError, match="not available"):          # no requirements.txt in workspace
         to_execution_package(dep, FINDING, CTX, plan, src)
     with pytest.raises(HandoffError, match="no host"):
         to_execution_package(dep, FINDING, FindingContext(target="demo-app"), plan, src)
@@ -194,3 +194,89 @@ def test_pipeline_end_to_end_with_executor(tmp_path):
     assert "?" in (ws / "app.py").read_text(encoding="utf-8")
     log = (Path(out["out_dir"]) / "decisions.jsonl").read_text()
     assert '"stage": "execution"' in log and '"decision": "ACCEPT"' in log
+
+
+# ---------------- baseline ("before") and config / dependency changes ----------------
+
+def test_baseline_runs_the_checks_on_unmodified_code_and_changes_nothing(lab):
+    out, _, ws = _run(lab, [_reply(_diff(ORIG, FIX))])
+    base = {c["name"]: c["passed"] for c in out["baseline"]["checks"]}
+    assert base == {"security_retest": False, "regression": True, "new_vulnerability_scan": False}
+    after = {c["name"]: c["passed"] for c in out["attempts"][-1]["checks"]}
+    assert all(after.values())                      # fails before, passes after = fix proven
+    assert (ws / "app.py").read_text(encoding="utf-8") == FIX
+
+
+def test_baseline_leaves_original_bytes_untouched(lab):
+    from reasoning.handoff import baseline_package
+    ws, plan, ex, src = lab
+    eng, _ = _engine(src, [_reply(_diff(ORIG, FIX))])
+    pkg = eng.propose(FINDING, CTX, ASSESS)
+    ex.execute(baseline_package(to_execution_package(pkg, FINDING, CTX, plan, src), src))
+    assert (ws / "app.py").read_bytes() == ORIG.encode("utf-8")
+
+
+def _cfg(tmp_path, name, text):
+    (tmp_path / name).write_bytes(text.encode("utf-8"))
+    return FileSourceProvider(str(tmp_path))
+
+
+def test_dependency_upgrade_edits_only_the_pinned_line(tmp_path):
+    from reasoning.handoff import file_change
+    src = _cfg(tmp_path, "requirements.txt", "flask==1.0\nRequests[security]==2.19.0  # old\npytest>=7\n")
+    c = ChangeItem("dependency_upgrade", package="requests", from_version="2.19.0", to_version="2.32.0")
+    out = file_change(c, src)
+    assert out["content"] == "flask==1.0\nRequests[security]==2.32.0  # old\npytest>=7\n"
+    with pytest.raises(HandoffError, match="not '==9.9'"):
+        file_change(ChangeItem("dependency_upgrade", package="flask", from_version="9.9", to_version="2"), src)
+    with pytest.raises(HandoffError, match="not listed"):
+        file_change(ChangeItem("dependency_upgrade", package="django", to_version="5"), src)
+
+
+def test_config_change_edits_one_explicit_setting(tmp_path):
+    from reasoning.handoff import file_change
+    src = _cfg(tmp_path, "sshd_config", "# comment\r\nPermitRootLogin yes\r\nPort 22\r\n")
+    c = ChangeItem("config_change", file="sshd_config", key="permitrootlogin", old_value="yes", new_value="no")
+    assert file_change(c, src)["content"] == "# comment\r\nPermitRootLogin no\r\nPort 22\r\n"   # CRLF kept
+    wrong = ChangeItem("config_change", file="sshd_config", key="Port", old_value="2222", new_value="22")
+    with pytest.raises(HandoffError, match="currently '22'"):
+        file_change(wrong, src)
+    unset = ChangeItem("config_change", file="sshd_config", key="X11Forwarding", new_value="no")
+    with pytest.raises(HandoffError, match="not set explicitly"):
+        file_change(unset, src)
+
+
+def test_ini_style_config_keeps_its_separator(tmp_path):
+    from reasoning.handoff import file_change
+    src = _cfg(tmp_path, "app.ini", "debug = true\nname: demo\n")
+    out = file_change(ChangeItem("config_change", file="app.ini", key="debug", new_value="false"), src)
+    assert out["content"] == "debug = false\nname: demo\n"
+
+
+def test_a_config_fix_runs_through_the_real_executor_with_a_network_check(lab):
+    ws, plan, ex, src = lab
+    (ws / "service.conf").write_text("debug=true\nport=80\n", encoding="utf-8")
+    reply = json.dumps({"changes": [{"type": "config_change", "file": "service.conf", "key": "debug",
+                                     "old_value": "true", "new_value": "false"}],
+                        "expected_security_effect": "s", "expected_functional_behaviour": "f",
+                        "expected_network_behaviour": "n"})
+    eng, _ = _engine(src, [reply])
+    pkg = eng.propose(FINDING, CTX, ReasoningResult(**{**ASSESS.__dict__,
+                      "recommended_change_types": ["config_change"]}))
+    assert "network" in pkg.validation_requirements
+    d = to_execution_package(pkg, FINDING, CTX, plan, src)
+    assert d["changes"][0]["content"] == "debug=false\nport=80\n"
+    assert {"name": "network", "type": "tcp_reachable", "host": "192.168.56.10", "port": 80} in d["validation"]
+
+
+def test_invalid_config_proposal_is_rejected_at_proposal_time_with_the_real_value(tmp_path):
+    (tmp_path / "service.conf").write_text("debug=true\n", encoding="utf-8")
+    src = FileSourceProvider(str(tmp_path))
+    bad = json.dumps({"changes": [{"type": "config_change", "file": "service.conf", "key": "debug",
+                                   "old_value": "yes", "new_value": "false"}]})
+    good = json.dumps({"changes": [{"type": "config_change", "file": "service.conf", "key": "debug",
+                                    "old_value": "true", "new_value": "false"}]})
+    eng, llm = _engine(src, [bad, good])
+    pkg = eng.propose(FINDING, CTX, ReasoningResult(**{**ASSESS.__dict__,
+                      "recommended_change_types": ["config_change"]}))
+    assert pkg.status == "proposed" and "currently 'true'" in llm.calls[1]["user"]

@@ -57,6 +57,7 @@ def run_case(bundle_path: str, llm: LLMClient, assets_path: str = "config/assets
                                                plan or ValidationPlan(), source, log)
                     pkg, rec["outcome"], rec["attempts"] = (loop["package"], loop["outcome"],
                                                             loop["attempts"])
+                    rec["baseline"] = loop["baseline"]
                 rec["package"] = pkg.to_dict()
         except ReasoningError as exc:               # explicit failure, never silent
             rec["error"] = str(exc)

@@ -1,0 +1,26 @@
+{
+  "version": "1.80.0",
+  "results": [
+    {
+      "check_id": "python.lang.weak-hash",
+      "path": "app.py",
+      "start": {
+        "line": 7
+      },
+      "end": {
+        "line": 7
+      },
+      "extra": {
+        "message": "Weak hash function used for passwords",
+        "severity": "ERROR",
+        "metadata": {
+          "confidence": "HIGH",
+          "cwe": [
+            "CWE-327"
+          ]
+        }
+      }
+    }
+  ],
+  "errors": []
+}

@@ -102,6 +102,7 @@ bundle.json -> correlate -> context -> reason (LLM) -> remediate (LLM) -> remedi
 | `reasoning/decisionlog.py` | Append-only audit log (`decisions.jsonl`) of every LLM exchange with prompt hashes. |
 | `reasoning/handoff.py` | Converts a reasoning package into `controlled_execution`'s format (full file content + `expected_sha256`, host target, concrete checks) and converts its result back. Refuses to run with weaker validation than required. |
 | `reasoning/closed_loop.py`, `validation_plan.py` | Execute -> validate -> refine loop (max 3 attempts, then escalate to a human). Validation commands come from an operator-written JSON plan, never from the LLM; the same list is the executor's allow-list. |
+| `benchmark.py` | Runs every `samples/*` app through the full loop and prints/saves metrics (patch success rate, first-attempt rate, confirmed fixes, regression pass rate, time, citation coverage). |
 | `reasoning/report.py` | Builds `report.html`: one self-contained page (before vs after, reasoning with cited evidence, colored diff, per-check results, earlier attempts). All tool/model text is HTML-escaped. |
 | `reasoning/llm.py`, `stub.py` | `LLMClient` interface, Anthropic HTTPS client, scripted test LLM, offline rule-based stub. |
 
@@ -121,8 +122,16 @@ Output under `data/cases/<case_id>/reasoning/`: `report.html` (open in a browser
 Install test dependencies with `pip install -r requirements.txt`.
 Real model: set `ANTHROPIC_API_KEY` (optionally `JANUS_LLM_MODEL`) and run `python demo_reasoning.py --llm anthropic`.
 
-Reasoning-layer limitations: the Anthropic client has not been run against the live API; only `code_patch` changes can be executed
-automatically (config, dependency and firewall changes are proposed but handed to a human); the reasoner reads source from the same
+Samples and benchmark: `samples/` holds five deliberately vulnerable apps (SQL injection, path traversal, hard-coded secret,
+eval injection, weak password hash), each with an exploit check, a regression check and a recorded Semgrep result (`semgrep.json`,
+sample data, not a live scan). `python benchmark.py` runs all of them. With the offline stub it only proves the pipeline works
+(the stub knows four of the five patterns on purpose, so one ends as "needs a human"); run it with `--llm anthropic` for a real measurement.
+
+Before/after: before applying a fix, the loop runs the same checks on the unmodified code (a no-op rewrite through the executor),
+so the report can show a check failing before and passing after.
+
+Reasoning-layer limitations: the Anthropic client has not been run against the live API; code patches, simple config edits (`key value`, `key=value`, `key: value`) and `requirements.txt` pins are executed
+automatically; firewall/ACL changes are proposed but always handed to a human; the reasoner reads source from the same
 workspace the executor writes to; code patches are single-file;
 SAST and DAST findings are not yet linked (needs a route-to-code map); firewall/ACL changes are proposals that always require approval.
 

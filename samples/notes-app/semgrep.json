@@ -1,0 +1,26 @@
+{
+  "version": "1.80.0",
+  "results": [
+    {
+      "check_id": "python.lang.path-traversal",
+      "path": "app.py",
+      "start": {
+        "line": 14
+      },
+      "end": {
+        "line": 14
+      },
+      "extra": {
+        "message": "User-controlled file name used in a file path",
+        "severity": "ERROR",
+        "metadata": {
+          "confidence": "HIGH",
+          "cwe": [
+            "CWE-22"
+          ]
+        }
+      }
+    }
+  ],
+  "errors": []
+}

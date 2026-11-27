@@ -1,0 +1,6 @@
+{
+  "name": "demo-app",
+  "cwe": "CWE-89",
+  "description": "User input flows into SQL query",
+  "note": "semgrep.json is RECORDED sample output, not a live scan"
+}

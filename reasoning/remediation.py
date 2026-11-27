@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional
 from reasoning import prompts
 from reasoning.decisionlog import DecisionLog
 from reasoning.llm import LLMClient, call_json
+from reasoning.handoff import HandoffError, file_change
 from reasoning.models import (CHANGE_TYPES, ChangeItem, Finding, FindingContext,
                               RemediationPackage, ReasoningResult, ValidationResult)
 from reasoning.patching import PatchError, validate_patch
@@ -56,6 +57,11 @@ class RemediationEngine:
                         validate_patch(item.diff, path, original)
                     except PatchError as exc:
                         raise ValueError(f"patch does not apply to the real file: {exc}")
+                elif ctype in ("config_change", "dependency_upgrade") and self.source is not None:
+                    try:                       # dry-run the conversion against the real file
+                        file_change(item, self.source)
+                    except HandoffError as exc:
+                        raise ValueError(f"{ctype} cannot be applied: {exc}")
                 changes.append(item)
             return (changes, str(obj.get("expected_security_effect", "")),
                     str(obj.get("expected_functional_behaviour", "")),
@@ -82,9 +88,14 @@ class RemediationEngine:
 
         allowed_ids = set(finding.evidence_ids) | set(context.evidence_ids)
         src = self.source.for_prompt(path, line) if (self.source and path and original) else None
+        manifests = {}
+        if "dependency_upgrade" in allowed and self.source is not None:
+            text = self.source.read("requirements.txt")
+            if text is not None:
+                manifests["requirements.txt"] = text[:4000]
         user = prompts.remediate_prompt(finding.to_dict(), context.to_dict(), assessment.to_dict(),
                                         allowed_ids, allowed, src, previous_failures,
-                                        previous_changes or [])
+                                        previous_changes or [], manifests)
         changes, sec, func, net = call_json(
             self.llm, self.log, "remediate", finding.finding_id, prompts.REMEDIATE_SYSTEM, user,
             lambda o: self._parse_changes(o, allowed, path, original), self.max_retries)

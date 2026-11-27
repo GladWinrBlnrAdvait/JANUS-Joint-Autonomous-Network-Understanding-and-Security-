@@ -95,3 +95,9 @@ def test_stub_reasoning_cites_the_right_kind_of_evidence(tmp_path):
     open_svc = {sv["evidence_id"] for sv in rec["context"]["open_services"] if sv["port"] == 80}
     assert set(port_ids) <= open_svc and port_ids          # port claim cites the Nmap open-port item
     assert gap_ids == ["HOST-0a1b2c3d4e5f"]                       # gap claim cites the failed collection
+
+
+def test_report_shows_before_vs_after_per_check(tmp_path):
+    html = Path(_run(tmp_path)[0]["report"]).read_text(encoding="utf-8")
+    assert "Before (unmodified)" in html and "After (change applied)" in html
+    assert "Fix confirmed" in html and "No regression" in html

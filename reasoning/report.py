@@ -84,6 +84,32 @@ def _checks_table(checks: List[Dict[str, Any]]) -> str:
     return f"<table><tr><th>Check</th><th>Type</th><th>Result</th><th>Details</th></tr>{rows}</table>"
 
 
+def _pf(passed) -> str:
+    return _badge("PASS", "ok") if passed else _badge("FAIL", "bad")
+
+
+def _compare_table(before: List[Dict[str, Any]], after: List[Dict[str, Any]]) -> str:
+    """Per check: result on the unmodified code vs after the change, plus a plain-English verdict."""
+    b = {c["name"]: c["passed"] for c in before}
+    a = {c["name"]: c["passed"] for c in after}
+    rows = "".join(f"<tr><td>{esc(n)}</td><td>{_pf(b[n]) if n in b else 'n/a'}</td>"
+                   f"<td>{_pf(a[n])}</td></tr>" for n in a)
+    notes = []
+    for n in ("security_retest", "exploit_retest"):
+        if n in a and n in b:
+            if not b[n] and a[n]:
+                notes.append(f"Fix confirmed: <code>{n}</code> failed before the change and passes after it.")
+            elif b[n] and a[n]:
+                notes.append(f"<code>{n}</code> passed even before the change, so it cannot prove this fix.")
+    if "regression" in a and "regression" in b:
+        if b["regression"] and a["regression"]:
+            notes.append("No regression: functionality worked before and still works.")
+        elif not b["regression"]:
+            notes.append("Warning: the regression check already failed before the change, so it cannot show that nothing broke.")
+    note = "".join(f"<p class='small'>{n}</p>" for n in notes)
+    return (f"<table><tr><th>Check</th><th>Before (unmodified)</th><th>After (change applied)</th></tr>{rows}</table>{note}")
+
+
 def _finding_card(rec: Dict[str, Any]) -> str:
     f, ctx, a, pkg = rec["finding"], rec.get("context"), rec.get("assessment"), rec.get("package")
     outcome = rec.get("outcome")
@@ -111,7 +137,9 @@ def _finding_card(rec: Dict[str, Any]) -> str:
         last = attempts[-1]
         after += _kv([("Decision", _badge(last["decision"], "ok" if last["decision"] == "ACCEPT" else "bad")),
                       ("Rolled back", "yes" if last.get("rolled_back") else "no"),
-                      ("Attempts", str(len(attempts)))]) + _checks_table(last["checks"])
+                      ("Attempts", str(len(attempts)))])
+        base = (rec.get("baseline") or {}).get("checks")
+        after += _compare_table(base, last["checks"]) if base else _checks_table(last["checks"])
     elif rec.get("attempts") and rec["attempts"][-1].get("blocked"):
         after += f'<p>Not executed: {esc(rec["attempts"][-1]["blocked"])}</p>'
     else:

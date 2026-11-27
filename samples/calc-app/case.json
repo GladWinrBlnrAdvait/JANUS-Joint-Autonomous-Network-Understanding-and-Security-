@@ -1,0 +1,6 @@
+{
+  "name": "calc-app",
+  "cwe": "CWE-95",
+  "description": "User input passed to eval()",
+  "note": "semgrep.json is RECORDED sample output, not a live scan"
+}

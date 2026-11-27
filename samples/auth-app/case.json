@@ -1,0 +1,6 @@
+{
+  "name": "auth-app",
+  "cwe": "CWE-327",
+  "description": "Weak hash function used for passwords",
+  "note": "semgrep.json is RECORDED sample output, not a live scan"
+}

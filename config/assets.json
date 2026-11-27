@@ -3,5 +3,25 @@
     "host": "192.168.56.10",
     "port": 80,
     "role": "web application (demo)"
+  },
+  "notes-app": {
+    "host": "192.168.56.10",
+    "port": 80,
+    "role": "web application (demo)"
+  },
+  "token-app": {
+    "host": "192.168.56.10",
+    "port": 80,
+    "role": "web application (demo)"
+  },
+  "calc-app": {
+    "host": "192.168.56.10",
+    "port": 80,
+    "role": "web application (demo)"
+  },
+  "auth-app": {
+    "host": "192.168.56.10",
+    "port": 80,
+    "role": "web application (demo)"
   }
 }

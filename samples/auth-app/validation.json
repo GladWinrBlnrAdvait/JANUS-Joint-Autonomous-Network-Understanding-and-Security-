@@ -1,0 +1,8 @@
+{
+  "commands": {
+    "security_retest": ["{python}", "-B", "-m", "pytest", "-q", "-p", "no:cacheprovider", "check_exploit.py"],
+    "exploit_retest": ["{python}", "-B", "-m", "pytest", "-q", "-p", "no:cacheprovider", "check_exploit.py"],
+    "regression": ["{python}", "-B", "-m", "pytest", "-q", "-p", "no:cacheprovider", "check_regression.py"],
+    "new_vulnerability_scan": ["{python}", "-B", "check_static_scan.py"]
+  }
+}

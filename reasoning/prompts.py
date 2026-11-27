@@ -35,8 +35,10 @@ Return JSON with exactly these keys:
  "expected_network_behaviour": "<text, or 'no network-visible change'>"}
 Each change is one of:
  {"type": "code_patch", "file": "<path>", "diff": "<unified diff, a/ and b/ headers, exact line numbers>"}
- {"type": "dependency_upgrade", "package": "<name>", "from_version": "<v>", "to_version": "<v>"}
- {"type": "config_change", "file": "<relative path>", "key": "<key>", "old_value": "<v>", "new_value": "<v>"}
+ {"type": "dependency_upgrade", "package": "<name>", "from_version": "<pinned version>", "to_version": "<v>"}
+   (edits requirements.txt, shown in manifest_files; "file" is optional and defaults to it)
+ {"type": "config_change", "file": "<relative path>", "key": "<key>", "old_value": "<current value>", "new_value": "<v>"}
+   (edits one existing `key value`, `key=value` or `key: value` line; old_value must equal the current value)
  {"type": "network_rule", "description": "<proposed firewall/ACL change>"}
 Changes are data only: never shell commands. Use only the change types in allowed_change_types.
 A code_patch must apply exactly to the numbered source provided and touch only the finding's file.
@@ -54,9 +56,10 @@ def reason_prompt(finding: Dict[str, Any], context: Dict[str, Any],
 
 
 def remediate_prompt(finding, context, assessment, allowed_ids, allowed_types,
-                     source, previous_failures, previous_changes) -> str:
+                     source, previous_failures, previous_changes, manifest_files=None) -> str:
     return wrap({"task": "remediate", "finding": finding, "context": context,
                  "assessment": assessment, "allowed_evidence_ids": sorted(allowed_ids),
                  "allowed_change_types": list(allowed_types), "source": source,
+                 "manifest_files": manifest_files or {},
                  "previous_attempts_failed_because": previous_failures,
                  "previous_changes_that_failed": previous_changes})

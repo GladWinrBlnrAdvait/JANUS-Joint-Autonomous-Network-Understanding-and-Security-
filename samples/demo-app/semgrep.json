@@ -1,0 +1,26 @@
+{
+  "version": "1.80.0",
+  "results": [
+    {
+      "check_id": "python.flask.sql-injection",
+      "path": "app.py",
+      "start": {
+        "line": 42
+      },
+      "end": {
+        "line": 42
+      },
+      "extra": {
+        "message": "User input flows into SQL query",
+        "severity": "ERROR",
+        "metadata": {
+          "confidence": "HIGH",
+          "cwe": [
+            "CWE-89"
+          ]
+        }
+      }
+    }
+  ],
+  "errors": []
+}

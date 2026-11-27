@@ -1,0 +1,6 @@
+{
+  "name": "token-app",
+  "cwe": "CWE-798",
+  "description": "Hard-coded secret key",
+  "note": "semgrep.json is RECORDED sample output, not a live scan"
+}

@@ -1,0 +1,6 @@
+{
+  "name": "notes-app",
+  "cwe": "CWE-22",
+  "description": "User-controlled file name used in a file path",
+  "note": "semgrep.json is RECORDED sample output, not a live scan"
+}
