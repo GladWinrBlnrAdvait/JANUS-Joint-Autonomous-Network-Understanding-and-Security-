@@ -5,6 +5,7 @@ JANUS Reasoning layer demo (offline by default).
     python demo_reasoning.py                      # reason + propose a fix (stub model, no API key)
     python demo_reasoning.py --execute            # ...and apply it with controlled_execution,
                                                   #    validate independently, roll back on failure
+    python demo_reasoning.py --execute --open     # ...and open report.html in your browser
     python demo_reasoning.py --llm anthropic      # real model (needs ANTHROPIC_API_KEY)
 """
 
@@ -25,6 +26,7 @@ def main():
     ap.add_argument("--llm", choices=["stub", "anthropic"], default="stub")
     ap.add_argument("--execute", action="store_true", help="apply + validate with controlled_execution")
     ap.add_argument("--scope", default="192.168.56.0/24", help="authorized network for --execute")
+    ap.add_argument("--open", action="store_true", help="open the report in your browser when done")
     ap.add_argument("--validation", default=None, help="validation plan JSON (default: <source>/validation.json)")
     args = ap.parse_args()
 
@@ -54,7 +56,11 @@ def main():
 
     summary = run_case(args.bundle, llm, args.assets, source, executor, plan)
     print(json.dumps(summary, indent=2))
-    print("\nOpen this file in your browser to see the report:\n  " + str(Path(summary["report"]).resolve()))
+    report = Path(summary["report"])
+    print(f"\nReport: {report.as_posix()}  (open it in a browser, or re-run with --open)")
+    if args.open:
+        import webbrowser
+        webbrowser.open(report.resolve().as_uri())
 
 
 if __name__ == "__main__":
